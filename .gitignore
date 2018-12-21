@@ -1,15 +1,10 @@
-data/
-net/
-temp/*
-result/
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
 # IDE and editor files
-.idea/
+# .idea/
 .vscode/
 .cache/
 .ipynb_checkpoints/

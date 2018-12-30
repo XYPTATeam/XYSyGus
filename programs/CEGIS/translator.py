@@ -77,7 +77,6 @@ def ReadQuery(bmExpr):
     class SynFunction:
         def __init__(self, SynFunExpr):
             self.name = SynFunExpr[1]
-            # TODO: arg and ret sort
             self.argList = SynFunExpr[2]
             self.retSort = SynFunExpr[3]
             self.Sorts = []
@@ -199,6 +198,8 @@ def ReadQuery(bmExpr):
             for arg in VarDecList:
                 var = self.VarTable[arg]
                 value = model.eval(var)
+                if not isinstance(value, IntNumRef):
+                    return
                 sexpr = value.sexpr()
                 if sexpr.startswith('('):
                     sexpr = sexpr[1:-1]

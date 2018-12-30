@@ -8,8 +8,12 @@ max2 = '''
 (synth-fun max2 ((x Int) (y Int)) Int
     ((Start Int (x
                  y
+                 0
+                 1
                  (ite StartBool Start Start)))
-     (StartBool Bool (
+     (StartBool Bool ((and StartBool StartBool)
+                      (or  StartBool StartBool)
+                      (not StartBool)
                       (<=  Start Start)
                       (=   Start Start)
                       (>=  Start Start)))))
@@ -19,7 +23,8 @@ max2 = '''
 
 (constraint (>= (max2 x y) x))
 (constraint >= (max2 x y) y)
-(constraint (or (= x (max2 x y))(= y (max2 x y))))
+(constraint (or (= x (max2 x y))
+				(= y (max2 x y))))
 
 
 (check-synth)

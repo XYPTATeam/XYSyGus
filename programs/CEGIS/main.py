@@ -80,7 +80,7 @@ if __name__ == '__main__':
             else:
                 Productions[NTName].append(NT)
 
-    checker.add_CEGIS()
+    checker.add_positive_CEGIS()
 
     Count = 0
     while (len(BfsQueue) != 0):
@@ -94,13 +94,16 @@ if __name__ == '__main__':
             Str = FuncDefineStr[:-1] + ' ' + CurrStr + FuncDefineStr[
                 -1]  # insert Program just before the last bracket ')'
             Count += 1
-            counterexample = checker.check(Str)
-            # print counterexample
-            if (counterexample == None):  # No counter-example
-                Ans = Str
-                break
-            else:
-                CEGIS_example = checker.check_CEGIS(counterexample, Str)
+
+            CEGIS_example = checker.check_CEGIS(Str)
+            if CEGIS_example == None:
+                counterexample = checker.check(Str)
+                # print counterexample
+                if (counterexample == None):  # No counter-example
+                    Ans = Str
+                    break
+                else:
+                    checker.add_negative_CEGIS(counterexample, Str)
 
         TE_set = set()
         for TE in TryExtend:

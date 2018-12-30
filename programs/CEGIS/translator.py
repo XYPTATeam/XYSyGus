@@ -125,7 +125,7 @@ def ReadQuery(bmExpr):
                 self.solver.pop()
                 return model
 
-        def add_CEGIS(self):
+        def add_positive_CEGIS(self):
             temp_contraints = copy.deepcopy(Constraints)
             func_list = []
             func_list.append(SynFunExpr[1])
@@ -188,7 +188,7 @@ def ReadQuery(bmExpr):
                     return False
             return True
 
-        def check_CEGIS(self, model, func_str):
+        def add_negative_CEGIS(self, model, func_str):
             self.solver.push()
             str_list = []
             ret_str = '(declare-const ret Int)'
@@ -198,12 +198,12 @@ def ReadQuery(bmExpr):
             d = {}
             for arg in VarDecList:
                 var = self.VarTable[arg]
-                value = model.eval(VarTable[var])
+                value = model.eval(var)
                 sexpr = value.sexpr()
                 if sexpr.startswith('('):
                     sexpr = sexpr[1:-1]
                 val_str = sexpr.replace(' ', '')
-                d[var] = int(val_str)
+                d[arg] = int(val_str)
                 arg_list.append(str(value))
             func_ret_str = '(assert (= ret ({0} {1})))'.format(SynFunExpr[1], ' '.join(arg_list))
             str_list.append(func_ret_str)
@@ -224,6 +224,67 @@ def ReadQuery(bmExpr):
 
             self.CEGISNegativeList.append(d)
             self.solver.pop()
+
+        def check_CEGIS(self, func_str):
+            str_list = []
+            ret_str = '(declare-const ret Int)'
+            str_list.append(ret_str)
+            str_list.append(func_str)
+
+            for d in self.CEGISPositiveList:
+                self.solver.push()
+                arg_list = []
+                for arg in VarDecList:
+                    arg_list.append(str(d[arg]))
+                func_ret_str = '(assert (= ret ({0} {1})))'.format(SynFunExpr[1], ' '.join(arg_list))
+                str_list.append(func_ret_str)
+                str_CEGIS = "\n".join(str_list).encode('utf8')
+                str_list.pop(-1)
+                spec = parse_smt2_string(str_CEGIS)
+
+                res = self.solver.check(spec)
+                if res == sat:
+                    res_model = self.solver.model()
+                    ret = Int('ret')
+                    value = res_model.eval(ret)
+                    sexpr = value.sexpr()
+                    if sexpr.startswith('('):
+                        sexpr = sexpr[1:-1]
+                    val_str = sexpr.replace(' ', '')
+
+                    if not d['ret'] == int(val_str):
+                        return res_model
+
+                self.solver.pop()
+
+            for d in self.CEGISNegativeList:
+                self.solver.push()
+                arg_list = []
+                for arg in VarDecList:
+                    arg_list.append(str(d[arg]))
+                func_ret_str = '(assert (= ret ({0} {1})))'.format(SynFunExpr[1], ' '.join(arg_list))
+                str_list.append(func_ret_str)
+                str_CEGIS = "\n".join(str_list).encode('utf8')
+                str_list.pop(-1)
+                spec = parse_smt2_string(str_CEGIS)
+
+                res = self.solver.check(spec)
+                if res == sat:
+                    res_model = self.solver.model()
+                    ret = Int('ret')
+                    value = res_model.eval(ret)
+                    sexpr = value.sexpr()
+                    if sexpr.startswith('('):
+                        sexpr = sexpr[1:-1]
+                    val_str = sexpr.replace(' ', '')
+
+                    if d['ret'] == int(val_str):
+                        return res_model
+
+                self.solver.pop()
+
+            return None
+
 
     checker = Checker(VarTable, synFunction, Constraints)
     return checker

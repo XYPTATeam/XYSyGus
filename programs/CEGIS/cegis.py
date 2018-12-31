@@ -15,7 +15,7 @@ def add_positive_CEGIS(checker, st, target_list):
     smt2.append('(declare-const ret Int)')
 
     for constraint in temp_contraints:
-        smt2.append('(assert %s)' % (translator.toString(constraint[1:])))
+        smt2.append('(assert %s)' % (translator.to_string(constraint[1:])))
 
     checker.solver.push()
     str_smt2 = '\n'.join(smt2)

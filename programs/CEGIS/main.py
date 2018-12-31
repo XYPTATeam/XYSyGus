@@ -29,11 +29,11 @@ max2 = '''
 '''
 
 
-def Extend(Stmts, Productions):
+def extend(Stmts, Productions):
     ret = []
     for i in range(len(Stmts)):
         if type(Stmts[i]) == list:
-            TryExtend = Extend(Stmts[i], Productions)
+            TryExtend = extend(Stmts[i], Productions)
             if len(TryExtend) > 0:
                 for extended in TryExtend:
                     ret.append(Stmts[0:i] + [extended] + Stmts[i + 1:])
@@ -43,7 +43,7 @@ def Extend(Stmts, Productions):
     return ret
 
 
-def stripComments(bmFile):
+def strip_comments(bmFile):
     noComments = '('
     for line in bmFile:
         line = line.split(';', 1)[0]
@@ -54,26 +54,19 @@ def stripComments(bmFile):
 if __name__ == '__main__':
     # benchmarkFile = open(sys.argv[1])
     benchmarkFile = max2
-    bm = stripComments(benchmarkFile)
+
+    bm = strip_comments(benchmarkFile)
     bmExpr = sexp.sexp.parseString(bm, parseAll=True).asList()[0]  # Parse string to python list
-    # checker = translator.ReadQuery(bmExpr)
-    checker, st = translator.ReadQuery(bmExpr)
-    StartSym = 'My-Start-Symbol'  # virtual starting symbol
-    # SynFunExpr = []
-    # for expr in bmExpr:
-    #     if len(expr) == 0:
-    #         continue
-    #     elif expr[0] == 'synth-fun':
-    #         SynFunExpr = expr
+    checker, st = translator.read_query(bmExpr)
+
     FuncDefine = ['define-fun'] + st.SynFunExpr[1:4]  # copy function signature
-    BfsQueue = [[StartSym]]  # Top-down
-    Productions = {StartSym: []}
-    FuncCallList = []
-    FuncCallList.append(st.SynFunExpr[1])
+    FuncCallList = [st.SynFunExpr[1]]
     for var in st.VarDecList:
         FuncCallList.append(var)
-    Type = {StartSym: st.SynFunExpr[3]}  # set starting symbol's return type
 
+    StartSym = 'My-Start-Symbol'  # virtual starting symbol
+    Productions = {StartSym: []}
+    Type = {StartSym: st.SynFunExpr[3]}  # set starting symbol's return type
     for NonTerm in st.SynFunExpr[4]:  # SynFunExpr[4] is the production rules
         NTName = NonTerm[0]
         NTType = NonTerm[1]
@@ -91,14 +84,16 @@ if __name__ == '__main__':
     cegis.add_positive_CEGIS(checker, st, FuncCallList)
 
     Count = 0
+    Ans = None
+    BfsQueue = [[StartSym]]  # Top-down
     while (len(BfsQueue) != 0):
         Curr = BfsQueue.pop(0)
         # print("Extending "+str(Curr))
-        TryExtend = Extend(Curr, Productions)
+        TryExtend = extend(Curr, Productions)
         if (len(TryExtend) == 0):  # Nothing to extend
-            FuncDefineStr = translator.toString(FuncDefine,
-                                                ForceBracket=True)  # use Force Bracket = True on function definition. MAGIC CODE. DO NOT MODIFY THE ARGUMENT ForceBracket = True.
-            CurrStr = translator.toString(Curr)
+            FuncDefineStr = translator.to_string(FuncDefine,
+                                                 ForceBracket=True)  # use Force Bracket = True on function definition. MAGIC CODE. DO NOT MODIFY THE ARGUMENT ForceBracket = True.
+            CurrStr = translator.to_string(Curr)
             Str = FuncDefineStr[:-1] + ' ' + CurrStr + FuncDefineStr[
                 -1]  # insert Program just before the last bracket ')'
             Count += 1
@@ -106,7 +101,6 @@ if __name__ == '__main__':
             CEGIS_example = cegis.check_CEGIS(checker, st, Str)
             if CEGIS_example == None:
                 counterexample = checker.check(Str)
-                # print counterexample
                 if (counterexample == None):  # No counter-example
                     Ans = Str
                     break

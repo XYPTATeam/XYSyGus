@@ -1,9 +1,17 @@
+from __future__ import print_function
+
 import sys
 import sexp
 import translator
 import copy
 import cegis
 import hint
+import datetime
+
+
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
 
 max2 = '''
 (set-logic LIA)
@@ -137,28 +145,59 @@ tutorial = '''
 (check-synth)
 '''
 
+three = '''
+(set-logic LIA)
+
+(synth-fun f ((x Int)) Int
+    ((Start Int (
+                 x
+                 3
+                 7
+                 10
+                 (* Start Start)
+                 (mod Start Start)))))
+
+(declare-var x Int)
+
+(constraint (= (f x) (f (+ x 10))))
+(constraint (= (f 1) 3))
+(constraint (= (f 2) 6))
+(constraint (= (f 3) 9))
+(constraint (= (f 4) 2))
+(constraint (= (f 5) 5))
+(constraint (= (f 6) 8))
+(constraint (= (f 7) 1))
+(constraint (= (f 8) 4))
+(constraint (= (f 9) 7))
+(constraint (= (f 0) 0))
+
+(check-synth)
+'''
+
 
 def extend(Stmts, Productions, Types, hint_clc):
     ret = []
     checknow = []
     for i in range(len(Stmts)):
-        if not isinstance(Stmts[i], list):
+        if isinstance(Stmts[i], list):
+            TryExtend, other = extend(Stmts[i], Productions, Types, hint_clc)
+            if len(TryExtend) > 0:
+                for extended in TryExtend:
+                    if len(extended) != 0:
+                        ret.append(Stmts[0:i] + [extended] + Stmts[i + 1:])
+        else:
             production_type = Types.get(Stmts[i])
 
             if production_type == 'Int':
                 new_list = hint_clc.gen_stmt_from_hint()
-                if len(new_list) > 0:
+                if new_list is not None and len(new_list) > 0:
                     checknow.append(Stmts[0:i] + new_list + Stmts[i + 1:])
 
             if Productions.has_key(Stmts[i]):
                 for extended in Productions[Stmts[i]]:
-                    ret.append(Stmts[0:i] + [extended] + Stmts[i + 1:])
+                    if len(extended) != 0:
+                        ret.append(Stmts[0:i] + [extended] + Stmts[i + 1:])
 
-        else:
-            TryExtend = extend(Stmts[i], Productions, Types, hint_clc)
-            if len(TryExtend) > 0:
-                for extended in TryExtend:
-                    ret.append(Stmts[0:i] + [extended] + Stmts[i + 1:])
     return ret, checknow
 
 
@@ -170,12 +209,45 @@ def strip_comments(bmFile):
     return noComments + ')'
 
 
+def calc_seq(l):
+    global queue_seq
+    queue_seq = []
+    for i in l:
+        seq = get_list_depth(i)
+        queue_seq.append((l, seq))
+
+
+def get_seq(i):
+    global queue_seq
+    for t in queue_seq:
+        if t[0] == i:
+            return t[1]
+    return 0
+
+
+def get_list_depth(l):
+    if not isinstance(l, list):
+        return 0
+
+    max_depth = 0
+    for i in l:
+        t_depth = get_list_depth(i)
+        if t_depth > max_depth:
+            max_depth = t_depth
+    return max_depth + 1
+
+
 if __name__ == '__main__':
-    benchmarkFile = open(sys.argv[1])
-    # benchmarkFile = max2
-    # benchmarkFile = idx3
-    # benchmarkFile = s1
-    # benchmarkFile = tutorial
+    if len(sys.argv) > 1:
+        benchmarkFile = open(sys.argv[1])
+    else:
+        # benchmarkFile = max2
+        # benchmarkFile = idx3
+        # benchmarkFile = s1
+        benchmarkFile = three
+        # benchmarkFile = tutorial
+
+    t_beginning = datetime.datetime.now()
 
     bm = strip_comments(benchmarkFile)
     bmExpr = sexp.sexp.parseString(bm, parseAll=True).asList()[0]  # Parse string to python list
@@ -200,8 +272,7 @@ if __name__ == '__main__':
         Productions[NTName] = []
         for NT in NonTerm[2]:
             if type(NT) == tuple:
-                Productions[NTName].append(str(NT[
-                                                   1]))  # deal with ('Int',0). You can also utilize type information, but you will suffer from these tuples.
+                Productions[NTName].append(str(NT[1]))
             else:
                 Productions[NTName].append(NT)
 
@@ -219,7 +290,6 @@ if __name__ == '__main__':
     BfsQueue = [[StartSym]]  # Top-down
     while len(BfsQueue) != 0:
         Curr = BfsQueue.pop(0)
-        # print("Extending "+str(Curr))
         TryExtend, checknow = extend(Curr, Productions, Types, hint_clc)
         break_flag = False
         if len(checknow) != 0:
@@ -257,7 +327,13 @@ if __name__ == '__main__':
                 BfsQueue.append(TE)
                 TE_set.add(TE_str)
 
+        # calc_seq(BfsQueue)
+        # BfsQueue.sort(key=get_seq)
+
     print(Ans)
+    # timepassed = datetime.datetime.now() - t_beginning
+    # rtimepassed = timepassed.seconds + timepassed.microseconds / 1000000.0
+    # eprint('Time passed: ' + str(rtimepassed))
 
 # Examples of counter-examples
 # print (checker.check('(define-fun max2 ((x Int) (y Int)) Int 0)'))

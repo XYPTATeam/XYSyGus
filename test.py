@@ -72,7 +72,7 @@ def my_test(cmd, outputfile, testname, timeout=300):
 
 
 if __name__ == '__main__':
-    timeout = 5
+    timeout = 60
     testresultfile = 'testresult.txt'
     outfile = open(testresultfile, 'w')
 

@@ -45,14 +45,14 @@ def format_expr(expr):
     return expr
 
 
-def contain_func(l, func_name):
-    for i in l:
-        if isinstance(i, list):
+def contain_func(expr, func_name):
+    if isinstance(expr, list):
+        for i in expr:
             if contain_func(i, func_name):
                 return True
-        else:
-            if i == func_name:
-                return True
+    else:
+        if expr == func_name:
+            return True
     return False
 
 
@@ -129,7 +129,7 @@ class Hint:
                     other_expr = l[1]
                 other_expr = format_expr(other_expr)
 
-                if other_expr is not None:
+                if other_expr is not None and not contain_func(other_expr, self.func_list[0]):
                     parent = self.get_form_parent_list(l)
                     if parent is None:
                         self.hint_list.append(other_expr)

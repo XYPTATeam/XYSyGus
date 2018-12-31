@@ -20,8 +20,8 @@ max2 = '''
 (declare-var x Int)
 (declare-var y Int)
 
-(constraint (>= (max2 x y) x))
-(constraint >= (max2 x y) y)
+(constraint (<= x (max2 x y)))
+(constraint <= y (max2 x y))
 (constraint (or (= x (max2 x y))
 				(= y (max2 x y))))
 
@@ -132,8 +132,8 @@ def strip_comments(bmFile):
 
 if __name__ == '__main__':
     # benchmarkFile = open(sys.argv[1])
-    # benchmarkFile = max2
-    benchmarkFile = idx3
+    benchmarkFile = max2
+    # benchmarkFile = idx3
     # benchmarkFile = s2
 
     bm = strip_comments(benchmarkFile)

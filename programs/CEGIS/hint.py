@@ -64,7 +64,7 @@ class Hint:
 
         self.hint_list = []
         self.hint_cond_list = []  # type: tuple(cond, expr)
-        self.hint_compare = []
+        self.hint_compare = []  # type: tuple(op, expr)
         self.hint_const = []
 
     def build_parent_list(self, l):
@@ -146,7 +146,20 @@ class Hint:
                         elif parent_op == 'or':
                             self.hint_list.append(other_expr)
             elif op in compare_op:
-                pass
+                op = l[0]
+                other_expr = None
+                if has_func == 1:
+                    other_expr = l[2]
+                elif has_func == 2:
+                    other_expr = l[1]
+                    # flap op
+                    if op.startswith('<'):
+                        op = op.replace('<', '>')
+                    else:
+                        op = op.replace('>', '<')
+                if other_expr is not None:
+                    other_expr = format_expr(other_expr)
+                    self.hint_compare.append((op, other_expr))
             else:
                 pass
 

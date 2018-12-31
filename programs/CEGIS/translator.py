@@ -111,6 +111,9 @@ def read_query(bmExpr):
             st.VarDecMap[expr[1]] = expr
             st.VarDecList.append(expr[1])
         elif expr[0] == 'constraint':
+            if len(expr) != 2:
+                new_expr = [expr[0], expr[1:]]
+                expr = new_expr
             st.Constraints.append(expr)
         elif expr[0] == 'define-fun':
             st.FunDefMap[expr[1]] = expr

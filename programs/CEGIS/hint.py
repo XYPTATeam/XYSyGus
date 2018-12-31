@@ -164,18 +164,48 @@ class Hint:
         if not may_be_func:
             return False
 
+        is_const = True
+        arg_list = []
+        for i in range(1, target_len):
+            expr = l[i]
+            expr = format_expr(expr)
+            if expr.isdigit():
+                arg_list.append(expr)
+            else:
+                is_const = False
+                break
+
+        if is_const:
+            parent = self.get_form_parent_list(l)
+            if parent is not None:
+                parent_op = parent[0]
+                if parent_op == '=':
+                    other_expr = None
+                    if parent[1] == l:
+                        other_expr = parent[2]
+                    elif parent[2] == l:
+                        other_expr = parent[1]
+                    if other_expr is not None:
+                        other_expr = format_expr(other_expr)
+                        self.hint_const.append((arg_list, other_expr))
+
         for i in range(target_len):
             if l[i] != self.func_list[i]:
                 return False
+
         return True
 
-    def gen_stmt_from_cond(self):
+    def gen_stmt_from_cond(self, early_stop=True):
         new_list = []
         cur_list = new_list
 
         len_cond_list = len(self.hint_cond_list)
+        if early_stop:
+            stop = len_cond_list - 1
+        else:
+            stop = len_cond_list
         if len_cond_list > 0:
-            for idx in range(len_cond_list - 1):
+            for idx in range(stop):
                 t_cond = self.hint_cond_list[idx]
                 cond = t_cond[0]
                 expr = t_cond[1]
@@ -188,13 +218,17 @@ class Hint:
 
         return new_list, cur_list
 
-    def gen_stmt_from_compare(self):
+    def gen_stmt_from_compare(self, early_stop=True):
         new_list = []
         cur_list = new_list
 
         len_compare = len(self.hint_compare)
         if len_compare > 0:
-            for idx in range(len_compare - 1):
+            if early_stop:
+                stop = len_compare - 1
+            else:
+                stop = len_compare
+            for idx in range(stop):
                 t_cmp = self.hint_compare[idx]
                 cond = []
                 expr = t_cmp[1]
@@ -206,7 +240,7 @@ class Hint:
                         continue
                     ct_cmp = self.hint_compare[cidx]
 
-                    if cond_cnt != len_compare - 2:
+                    if cond_cnt != stop - 1:
                         new_cond = [ct_cmp[0], expr, ct_cmp[1]]
                         cur_cond.append('and')
                         cur_cond.append(new_cond)
@@ -227,3 +261,111 @@ class Hint:
                 cur_list = next_list
 
         return new_list, cur_list
+
+    def gen_stmt_from_const(self, early_stop=True):
+        new_list = []
+        cur_list = new_list
+
+        len_const = len(self.hint_const)
+        if len_const > 0:
+            if early_stop:
+                stop = len_const - 1
+            else:
+                stop = len_const
+
+            for idx in range(stop):
+                t_const = self.hint_const[idx]
+                arg_list = t_const[0]
+                len_arg_list = len(arg_list)
+                expr = t_const[1]
+
+                cond = []
+                cur_cond = cond
+                cond_cnt = 0
+                for cidx in range(len_arg_list):
+                    if cond_cnt != len_arg_list - 1:
+                        new_cond = ['=', self.func_list[cidx + 1], arg_list[cidx]]
+                        cur_cond.append('and')
+                        cur_cond.append(new_cond)
+                        next_cond = []
+                        cur_cond.append(next_cond)
+                        cur_cond = next_cond
+                    else:
+                        cur_cond.append('=')
+                        cur_cond.append(self.func_list[cidx + 1])
+                        cur_cond.append(arg_list[cidx])
+                    cond_cnt += 1
+
+                cur_list.append('ite')
+                cur_list.append(cond)
+                cur_list.append(expr)
+                next_list = []
+                cur_list.append(next_list)
+                cur_list = next_list
+
+        return new_list, cur_list
+
+    def gen_stmt_from_hint(self):
+        ret_list = None
+        ret_cur_list = None
+
+        len_cond = len(self.hint_cond_list)
+        len_compare = len(self.hint_compare)
+        len_const = len(self.hint_const)
+        len_list = len(self.hint_list)
+        if len_cond > 0:
+            if len_compare > 0 or len_const > 0:
+                new_list, cur_list = self.gen_stmt_from_cond(early_stop=False)
+            else:
+                new_list, cur_list = self.gen_stmt_from_cond(early_stop=True)
+                t_cond = self.hint_cond_list[-1]
+                cur_list.append(t_cond[1])
+
+            ret_cur_list = cur_list
+            if ret_list is None:
+                ret_list = new_list
+
+        if len_compare > 0:
+
+            if len_cond > 0:
+                new_list, cur_list = self.gen_stmt_from_compare(early_stop=False)
+            else:
+                new_list, cur_list = self.gen_stmt_from_compare(early_stop=True)
+                t_cmp = self.hint_compare[-1]
+                cur_list.append(t_cmp[1])
+
+            if ret_cur_list is not None:
+                ret_cur_list.append(new_list[:])
+            ret_cur_list = cur_list
+            if ret_list is None:
+                ret_list = new_list
+
+        if len_const > 0:
+            if len_list > 0:
+                new_list, cur_list = self.gen_stmt_from_const(early_stop=False)
+                ret_cur_list = cur_list
+            else:
+                new_list, cur_list = self.gen_stmt_from_const(early_stop=True)
+                t_const = self.hint_const[-1]
+                cur_list.append(t_const[1])
+
+            if ret_cur_list is not None:
+                ret_cur_list.append(new_list[:])
+            ret_cur_list = cur_list
+            if ret_list is None:
+                ret_list = new_list
+
+        if len_list > 0 and len_cond == 0 and len_compare == 0 and len_cond == 0:
+            t_list = self.hint_list[-1]
+            new_list = [t_list]
+
+            if ret_cur_list is not None:
+                ret_cur_list.append(new_list[:])
+            if ret_list is None:
+                ret_list = new_list
+
+        self.hint_cond_list = []
+        self.hint_compare = []
+        self.hint_const = []
+
+        return ret_list

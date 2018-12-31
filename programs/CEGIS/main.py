@@ -29,6 +29,37 @@ max2 = '''
 (check-synth)
 '''
 
+s1 = '''
+(set-logic LIA)
+
+(synth-fun f ((x Int)) Int
+   ((Start Int (x
+                0 10 20 30 40 50 60 70 80 90 100
+                 (+ Start Start)
+                 (- Start Start)
+                 (ite StartBool Start Start)))
+     (StartBool Bool ((and StartBool StartBool)
+                      (or  StartBool StartBool)
+                      (not StartBool)
+                      (<=  Start Start)
+                      (=   Start Start)
+                      (>=  Start Start)))))
+
+(declare-var x Int)
+
+(constraint (= (f 0) 0))
+(constraint (= (f 1) 10))
+(constraint (= (f 2) 20))
+(constraint (= (f 3) 30))
+(constraint (= (f 4) 40))
+(constraint (= (f 5) 50))
+(constraint (or (and (> x 5) (= (f x) x)) (<= x 5)))
+
+
+
+(check-synth)
+'''
+
 s2 = '''
 (set-logic LIA)
 
@@ -113,41 +144,16 @@ def extend(Stmts, Productions, Types, hint_clc):
     for i in range(len(Stmts)):
         if not isinstance(Stmts[i], list):
             production_type = Types.get(Stmts[i])
+
             if production_type == 'Int':
-                len_cond_list = len(hint_clc.hint_cond_list)
-                len_compare = len(hint_clc.hint_compare)
-                len_hint_const = len(hint_clc.hint_const)
-                len_hint_list = len(hint_clc.hint_list)
-                if len_cond_list > 0:
-                    new_list, cur_list = hint_clc.gen_stmt_from_cond()
-                    t_cond = hint_clc.hint_cond_list[-1]
-                    cur_list.append(t_cond[1])
-
+                new_list = hint_clc.gen_stmt_from_hint()
+                if len(new_list) > 0:
                     checknow.append(Stmts[0:i] + new_list + Stmts[i + 1:])
-                    hint_clc.hint_cond_list = []
-
-                elif len_compare > 0:
-                    new_list, cur_list = hint_clc.gen_stmt_from_compare()
-                    t_cmp = hint_clc.hint_compare[-1]
-                    cur_list.append(t_cmp[1])
-
-                    checknow.append(Stmts[0:i] + new_list + Stmts[i + 1:])
-                    hint_clc.hint_compare = []
-
-                elif len_hint_const > 0:
-                    pass
-
-                elif len_hint_list > 0:
-                    t_list = hint_clc.hint_list[-1]
-                    new_list = [t_list]
-
-                    checknow.append(Stmts[0:i] + new_list + Stmts[i + 1:])
-                    hint_clc.hint_list = []
-
 
             if Productions.has_key(Stmts[i]):
                 for extended in Productions[Stmts[i]]:
                     ret.append(Stmts[0:i] + [extended] + Stmts[i + 1:])
+
         else:
             TryExtend = extend(Stmts[i], Productions, Types, hint_clc)
             if len(TryExtend) > 0:
@@ -168,7 +174,7 @@ if __name__ == '__main__':
     benchmarkFile = open(sys.argv[1])
     # benchmarkFile = max2
     # benchmarkFile = idx3
-    # benchmarkFile = s2
+    # benchmarkFile = s1
     # benchmarkFile = tutorial
 
     bm = strip_comments(benchmarkFile)

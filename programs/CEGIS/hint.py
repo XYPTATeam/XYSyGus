@@ -96,7 +96,7 @@ class Hint:
 
         return None
 
-    def hint_from_constraints(self, hinted_constraints, func_list, st):
+    def build_hint_from_constraints(self, hinted_constraints, func_list, st):
         self.func_list = func_list
         self.st = st
 
@@ -143,7 +143,7 @@ class Hint:
                                 cond_expr = parent[1]
                             if cond_expr is not None:
                                 self.hint_cond_list.append((cond_expr, other_expr))
-                        elif parent_op == 'or':
+                        else:
                             self.hint_list.append(other_expr)
             elif op in compare_op:
                 op = l[0]
@@ -160,8 +160,6 @@ class Hint:
                 if other_expr is not None:
                     other_expr = format_expr(other_expr)
                     self.hint_compare.append((op, other_expr))
-            else:
-                pass
 
         if not may_be_func:
             return False
@@ -170,3 +168,62 @@ class Hint:
             if l[i] != self.func_list[i]:
                 return False
         return True
+
+    def gen_stmt_from_cond(self):
+        new_list = []
+        cur_list = new_list
+
+        len_cond_list = len(self.hint_cond_list)
+        if len_cond_list > 0:
+            for idx in range(len_cond_list - 1):
+                t_cond = self.hint_cond_list[idx]
+                cond = t_cond[0]
+                expr = t_cond[1]
+                cur_list.append('ite')
+                cur_list.append(cond)
+                cur_list.append(expr)
+                next_list = []
+                cur_list.append(next_list)
+                cur_list = next_list
+
+        return new_list, cur_list
+
+    def gen_stmt_from_compare(self):
+        new_list = []
+        cur_list = new_list
+
+        len_compare = len(self.hint_compare)
+        if len_compare > 0:
+            for idx in range(len_compare - 1):
+                t_cmp = self.hint_compare[idx]
+                cond = []
+                expr = t_cmp[1]
+
+                cur_cond = cond
+                cond_cnt = 0
+                for cidx in range(len_compare):
+                    if cidx == idx:
+                        continue
+                    ct_cmp = self.hint_compare[cidx]
+
+                    if cond_cnt != len_compare - 2:
+                        new_cond = [ct_cmp[0], expr, ct_cmp[1]]
+                        cur_cond.append('and')
+                        cur_cond.append(new_cond)
+                        next_cond = []
+                        cur_cond.append(next_cond)
+                        cur_cond = next_cond
+                    else:
+                        cur_cond.append(ct_cmp[0])
+                        cur_cond.append(expr)
+                        cur_cond.append(ct_cmp[1])
+                    cond_cnt += 1
+
+                cur_list.append('ite')
+                cur_list.append(cond)
+                cur_list.append(expr)
+                next_list = []
+                cur_list.append(next_list)
+                cur_list = next_list
+
+        return new_list, cur_list

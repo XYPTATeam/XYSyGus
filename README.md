@@ -48,7 +48,7 @@ python main.py path_to_sl
 
 ## 5. 实验结果
 
-基于`open_tests`数据进行验证。实验结果如下：
+基于`open_tests`数据进行验证，通过(33/33)。实验结果如下：
 
 ~~~sh
 ./tests/open_tests/array_search_10.sl:Passed(0.857000)

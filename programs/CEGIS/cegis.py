@@ -18,9 +18,13 @@ def add_positive_CEGIS(checker, st, target_list):
     for constraint in temp_constraints:
         smt2.append('(assert %s)' % (translator.to_string(constraint[1:])))
 
-    checker.solver.push()
     str_smt2 = '\n'.join(smt2)
-    spec = parse_smt2_string(str_smt2)
+    try:
+        spec = parse_smt2_string(str_smt2)
+    except Exception:
+        return
+
+    checker.solver.push()
     checker.solver.add(spec)
 
     res = checker.solver.check()
@@ -33,15 +37,23 @@ def add_positive_CEGIS(checker, st, target_list):
             if sexpr.startswith('('):
                 sexpr = sexpr[1:-1]
             val_str = sexpr.replace(' ', '')
-            d[var] = int(val_str)
+            if val_str.isdigit():
+                d[var] = int(val_str)
+            else:
+                checker.solver.pop()
+                return
         ret = Int('ret')
         value = model.eval(ret)
         sexpr = value.sexpr()
+        if sexpr == 'ret':
+            checker.solver.pop()
+            return
         if sexpr.startswith('('):
             sexpr = sexpr[1:-1]
         val_str = sexpr.replace(' ', '')
-        d['ret'] = int(val_str)
-        CEGISPositiveList.append(d)
+        if val_str.isdigit():
+            d['ret'] = int(val_str)
+            CEGISPositiveList.append(d)
 
     checker.solver.pop()
 
@@ -68,7 +80,6 @@ def check_in_constraint_list(l, target_list):
 
 
 def add_negative_CEGIS(checker, st, model, func_str):
-    checker.solver.push()
     str_list = []
     ret_str = '(declare-const ret Int)'
     str_list.append(ret_str)
@@ -88,22 +99,29 @@ def add_negative_CEGIS(checker, st, model, func_str):
         arg_list.append(str(value))
     func_ret_str = '(assert (= ret ({0} {1})))'.format(st.SynFunExpr[1], ' '.join(arg_list))
     str_list.append(func_ret_str)
-
     str_CEGIS = "\n".join(str_list).encode('utf8')
 
-    spec = parse_smt2_string(str_CEGIS)
+    try:
+        spec = parse_smt2_string(str_CEGIS)
+    except Exception:
+        return
+    checker.solver.push()
     res = checker.solver.check(spec)
     if res == sat:
         res_model = checker.solver.model()
         ret = Int('ret')
         value = res_model.eval(ret)
         sexpr = value.sexpr()
+        if sexpr == 'ret':
+            checker.solver.pop()
+            return
         if sexpr.startswith('('):
             sexpr = sexpr[1:-1]
         val_str = sexpr.replace(' ', '')
-        d['ret'] = int(val_str)
+        if val_str.isdigit():
+            d['ret'] = int(val_str)
+            CEGISNegativeList.append(d)
 
-    CEGISNegativeList.append(d)
     checker.solver.pop()
 
 
@@ -114,7 +132,6 @@ def check_CEGIS(checker, st, func_str):
     str_list.append(func_str)
 
     for d in CEGISPositiveList:
-        checker.solver.push()
         arg_list = []
         for arg in st.VarDecList:
             arg_list.append(str(d[arg]))
@@ -122,8 +139,13 @@ def check_CEGIS(checker, st, func_str):
         str_list.append(func_ret_str)
         str_CEGIS = "\n".join(str_list).encode('utf8')
         str_list.pop(-1)
-        spec = parse_smt2_string(str_CEGIS)
 
+        try:
+            spec = parse_smt2_string(str_CEGIS)
+        except Exception:
+            return None
+
+        checker.solver.push()
         res = checker.solver.check(spec)
         if res == sat:
             res_model = checker.solver.model()
@@ -133,14 +155,13 @@ def check_CEGIS(checker, st, func_str):
             if sexpr.startswith('('):
                 sexpr = sexpr[1:-1]
             val_str = sexpr.replace(' ', '')
-
-            if not d['ret'] == int(val_str):
-                return res_model
+            if val_str.isdigit():
+                if not d['ret'] == int(val_str):
+                    return res_model
 
         checker.solver.pop()
 
     for d in CEGISNegativeList:
-        checker.solver.push()
         arg_list = []
         for arg in st.VarDecList:
             arg_list.append(str(d[arg]))
@@ -148,8 +169,12 @@ def check_CEGIS(checker, st, func_str):
         str_list.append(func_ret_str)
         str_CEGIS = "\n".join(str_list).encode('utf8')
         str_list.pop(-1)
-        spec = parse_smt2_string(str_CEGIS)
+        try:
+            spec = parse_smt2_string(str_CEGIS)
+        except Exception:
+            return None
 
+        checker.solver.push()
         res = checker.solver.check(spec)
         if res == sat:
             res_model = checker.solver.model()

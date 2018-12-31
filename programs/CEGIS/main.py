@@ -3,6 +3,7 @@ import sexp
 import translator
 import copy
 import cegis
+import hint
 
 max2 = '''
 (set-logic LIA)
@@ -83,24 +84,20 @@ idx3 = '''
 (check-synth)
 '''
 
-compare_op = ['<', '<=', '>=', '>']
-arithmetic_op = ['+', '-', '*', '/', 'mod']
-logic_op = ['and', 'or', 'not', 'imply']
 
-
-def extend(Stmts, Productions, Types, hint_list, hint_cond_list):
+def extend(Stmts, Productions, Types, hint_clc):
     ret = []
     checknow = []
     for i in range(len(Stmts)):
         if not isinstance(Stmts[i], list):
             production_type = Types.get(Stmts[i])
             if production_type == 'Int':
-                len_cond_list = len(hint_cond_list)
+                len_cond_list = len(hint_clc.hint_cond_list)
                 if len_cond_list > 0:
                     new_list = []
                     cur_list = new_list
                     for idx in range(len_cond_list - 1):
-                        t_cond = hint_cond_list[idx]
+                        t_cond = hint_clc.hint_cond_list[idx]
                         cond = t_cond[0]
                         expr = t_cond[1]
                         cur_list.append('ite')
@@ -109,17 +106,17 @@ def extend(Stmts, Productions, Types, hint_list, hint_cond_list):
                         next_list = []
                         cur_list.append(next_list)
                         cur_list = next_list
-                    t_cond = hint_cond_list[-1]
+                    t_cond = hint_clc.hint_cond_list[-1]
                     cur_list.append(t_cond[1])
 
                     checknow.append(Stmts[0:i] + new_list + Stmts[i + 1:])
-                    hint_cond_list = []
+                    hint_clc.hint_cond_list = []
 
             if Productions.has_key(Stmts[i]):
                 for extended in Productions[Stmts[i]]:
                     ret.append(Stmts[0:i] + [extended] + Stmts[i + 1:])
         else:
-            TryExtend = extend(Stmts[i], Productions, Types, hint_list, hint_cond_list)
+            TryExtend = extend(Stmts[i], Productions, Types, hint_clc)
             if len(TryExtend) > 0:
                 for extended in TryExtend:
                     ret.append(Stmts[0:i] + [extended] + Stmts[i + 1:])
@@ -133,142 +130,10 @@ def strip_comments(bmFile):
         noComments += line
     return noComments + ')'
 
-
-def sort_productions(productions, types):
-    for start_name in productions:
-        production_list = productions[start_name]
-        production_type = types[start_name]
-        if production_type == 'Int':
-            new_list = []
-            pending_list = []
-            for expr in production_list:
-                if isinstance(expr, list):
-                    pending_list.append(expr)
-                else:
-                    new_list.append(expr)
-
-            for expr in pending_list:
-                new_list.append(expr)
-            productions[start_name] = new_list
-        elif production_type == 'Bool':
-            new_list = []
-            pending_list = []
-            for expr in production_list:
-                if isinstance(expr, list):
-                    op = expr[0]
-                    if op in logic_op:
-                        pending_list.append(expr)
-                    else:
-                        new_list.append(expr)
-                else:
-                    new_list.append(expr)
-
-            for expr in pending_list:
-                new_list.append(expr)
-            productions[start_name] = new_list
-
-
-def build_parent_list(l, parent_tuple_list):
-    for i in l:
-        if isinstance(i, list):
-            parent_tuple_list.append((i, l))
-            build_parent_list(i, parent_tuple_list)
-
-
-def get_form_parent_list(l, parent_tuple_list):
-    for t in parent_tuple_list:
-        if t[0] == l:
-            return t[1]
-
-    return None
-
-
-def hint_from_constraints(hinted_constraints, func_list, parent_map):
-    hint_cond_list = []  # type: tuple(cond, expr)
-    hint_list = []
-    # check function list
-    for constraint in hinted_constraints:
-        if not isinstance(constraint, list):
-            continue
-        check_i(constraint, func_list, parent_map, hint_list, hint_cond_list)
-
-    return hint_list, hint_cond_list
-
-
-def check_i(l, target_list, parent_list, hint_list, hint_cond_list):
-    target_len = len(target_list)
-    l_len = len(l)
-    may_be_func = True
-    has_func = -1
-    for i in range(l_len):
-        context = l[i]
-        if isinstance(context, list):
-            may_be_func = False
-            result = check_i(context, target_list, parent_list, hint_list, hint_cond_list)
-            if result:
-                has_func = i
-
-    if has_func > 0:
-        op = l[0]
-        if op == '=':
-            other_expr = None
-            if has_func == 1:
-                other_expr = l[2]
-            elif has_func == 2:
-                other_expr = l[1]
-            other_expr = format_expr(other_expr)
-
-            if other_expr is not None:
-                parent = get_form_parent_list(l, parent_list)
-                if parent is None:
-                    hint_list.append(other_expr)
-                else:
-                    parent_op = parent[0]
-                    if parent_op == 'and' or parent_op == '=>':
-                        cond_expr = None
-                        if parent[1] == l:
-                            cond_expr = parent[2]
-                        elif parent[2] == l:
-                            cond_expr = parent[1]
-                        if cond_expr is not None:
-                            hint_cond_list.append((cond_expr, other_expr))
-                    elif parent_op == 'or':
-                        hint_list.append(other_expr)
-        elif op in compare_op:
-            pass
-        else:
-            pass
-
-    if not may_be_func:
-        return False
-
-    for i in range(target_len):
-        if l[i] != target_list[i]:
-            return False
-    return True
-
-
-def format_expr(expr):
-    if isinstance(expr, tuple):
-        expr = str(expr[1])
-    return expr
-
-
-def contain_func(l, func_name):
-    for i in l:
-        if isinstance(i, list):
-            if contain_func(i, func_name):
-                return True
-        else:
-            if i == func_name:
-                return True
-    return False
-
-
 if __name__ == '__main__':
-    benchmarkFile = open(sys.argv[1])
+    # benchmarkFile = open(sys.argv[1])
     # benchmarkFile = max2
-    # benchmarkFile = idx3
+    benchmarkFile = idx3
     # benchmarkFile = s2
 
     bm = strip_comments(benchmarkFile)
@@ -279,8 +144,8 @@ if __name__ == '__main__':
     FuncDefineStr = translator.to_string(FuncDefine,
                                          ForceBracket=True)  # use Force Bracket = True on function definition. MAGIC CODE. DO NOT MODIFY THE ARGUMENT ForceBracket = True.
     FuncCallList = [st.SynFunExpr[1]]
-    for var in st.VarDecList:
-        FuncCallList.append(var)
+    for var in st.SynFunExpr[2]:
+        FuncCallList.append(var[0])
 
     StartSym = 'My-Start-Symbol'  # virtual starting symbol
     Productions = {StartSym: []}
@@ -302,11 +167,11 @@ if __name__ == '__main__':
     cegis.add_positive_CEGIS(checker, st, FuncCallList)
 
     hinted_constraints = copy.deepcopy(st.Constraints)
-    parent_list = []
-    build_parent_list(hinted_constraints, parent_list)
-    hint_list, hint_cond_list = hint_from_constraints(hinted_constraints, FuncCallList, parent_list)
+    hint_clc = hint.Hint()
+    hint_clc.build_parent_list(hinted_constraints)
+    hint_clc.hint_from_constraints(hinted_constraints, FuncCallList, st)
 
-    sort_productions(Productions, Types)
+    hint.sort_productions(Productions, Types)
 
     Count = 0
     Ans = None
@@ -314,7 +179,7 @@ if __name__ == '__main__':
     while len(BfsQueue) != 0:
         Curr = BfsQueue.pop(0)
         # print("Extending "+str(Curr))
-        TryExtend, checknow = extend(Curr, Productions, Types, hint_list, hint_cond_list)
+        TryExtend, checknow = extend(Curr, Productions, Types, hint_clc)
         break_flag = False
         if len(checknow) != 0:
             for check_stmt in checknow:

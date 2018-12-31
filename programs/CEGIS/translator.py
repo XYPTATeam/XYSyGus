@@ -65,6 +65,7 @@ class CheckST:
         self.Constraints = []
         self.FunDefMap = {}
         self.VarTable = {}
+        self.TransTable = {}
 
 
 class Checker:
@@ -113,6 +114,14 @@ def read_query(bmExpr):
             st.Constraints.append(expr)
         elif expr[0] == 'define-fun':
             st.FunDefMap[expr[1]] = expr
+
+    arg_list = st.SynFunExpr[2]
+    len_var_list = len(st.VarDecList)
+    if len_var_list == len(arg_list):
+        for idx in range(len_var_list):
+            var = st.VarDecList[idx]
+            arg = arg_list[idx][0]
+            st.TransTable[var] = arg
 
     if verbose:
         print(st.SynFunExpr)

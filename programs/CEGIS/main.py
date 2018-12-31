@@ -1,6 +1,8 @@
 import sys
 import sexp
 import translator
+import copy
+import cegis
 
 max2 = '''
 (set-logic LIA)
@@ -8,12 +10,8 @@ max2 = '''
 (synth-fun max2 ((x Int) (y Int)) Int
     ((Start Int (x
                  y
-                 0
-                 1
                  (ite StartBool Start Start)))
-     (StartBool Bool ((and StartBool StartBool)
-                      (or  StartBool StartBool)
-                      (not StartBool)
+     (StartBool Bool (
                       (<=  Start Start)
                       (=   Start Start)
                       (>=  Start Start)))))
@@ -58,20 +56,25 @@ if __name__ == '__main__':
     benchmarkFile = max2
     bm = stripComments(benchmarkFile)
     bmExpr = sexp.sexp.parseString(bm, parseAll=True).asList()[0]  # Parse string to python list
-    checker = translator.ReadQuery(bmExpr)
-    SynFunExpr = []
+    # checker = translator.ReadQuery(bmExpr)
+    checker, st = translator.ReadQuery(bmExpr)
     StartSym = 'My-Start-Symbol'  # virtual starting symbol
-    for expr in bmExpr:
-        if len(expr) == 0:
-            continue
-        elif expr[0] == 'synth-fun':
-            SynFunExpr = expr
-    FuncDefine = ['define-fun'] + SynFunExpr[1:4]  # copy function signature
+    # SynFunExpr = []
+    # for expr in bmExpr:
+    #     if len(expr) == 0:
+    #         continue
+    #     elif expr[0] == 'synth-fun':
+    #         SynFunExpr = expr
+    FuncDefine = ['define-fun'] + st.SynFunExpr[1:4]  # copy function signature
     BfsQueue = [[StartSym]]  # Top-down
     Productions = {StartSym: []}
-    Type = {StartSym: SynFunExpr[3]}  # set starting symbol's return type
+    FuncCallList = []
+    FuncCallList.append(st.SynFunExpr[1])
+    for var in st.VarDecList:
+        FuncCallList.append(var)
+    Type = {StartSym: st.SynFunExpr[3]}  # set starting symbol's return type
 
-    for NonTerm in SynFunExpr[4]:  # SynFunExpr[4] is the production rules
+    for NonTerm in st.SynFunExpr[4]:  # SynFunExpr[4] is the production rules
         NTName = NonTerm[0]
         NTType = NonTerm[1]
         if NTType == Type[StartSym]:
@@ -85,7 +88,7 @@ if __name__ == '__main__':
             else:
                 Productions[NTName].append(NT)
 
-    checker.add_positive_CEGIS()
+    cegis.add_positive_CEGIS(checker, st, FuncCallList)
 
     Count = 0
     while (len(BfsQueue) != 0):
@@ -100,7 +103,7 @@ if __name__ == '__main__':
                 -1]  # insert Program just before the last bracket ')'
             Count += 1
 
-            CEGIS_example = checker.check_CEGIS(Str)
+            CEGIS_example = cegis.check_CEGIS(checker, st, Str)
             if CEGIS_example == None:
                 counterexample = checker.check(Str)
                 # print counterexample
@@ -108,7 +111,7 @@ if __name__ == '__main__':
                     Ans = Str
                     break
                 else:
-                    checker.add_negative_CEGIS(counterexample, Str)
+                    cegis.add_negative_CEGIS(checker, st, counterexample, Str)
 
         TE_set = set()
         for TE in TryExtend:

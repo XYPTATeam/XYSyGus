@@ -33,10 +33,11 @@
 ## 3. 代码结构
 
 ```sh
-./
-	hint.py  #利用Constraint中的暗示进行加速
-	cegis.py #利用CEGIS进行加速
-	main.py  #程序入口
+CEGIS/
+	hint.py  	  #利用Constraint中的暗示进行加速
+	cegis.py 	  #利用CEGIS进行加速
+	main.py  	  #程序入口
+	translator.py #syn2语言与使用list表示的语法树间转换
 ```
 
 ## 4. 使用方法
@@ -48,4 +49,40 @@ python main.py path_to_sl
 ## 5. 实验结果
 
 基于`open_tests`数据进行验证。实验结果如下：
+
+~~~sh
+./tests/open_tests/array_search_10.sl:Passed(0.857000)
+./tests/open_tests/array_search_11.sl:Passed(0.889000)
+./tests/open_tests/array_search_12.sl:Passed(0.860000)
+./tests/open_tests/array_search_13.sl:Passed(0.940000)
+./tests/open_tests/array_search_14.sl:Passed(0.932000)
+./tests/open_tests/array_search_15.sl:Passed(0.994000)
+./tests/open_tests/array_search_2.sl:Passed(0.721000)
+./tests/open_tests/array_search_3.sl:Passed(0.752000)
+./tests/open_tests/array_search_4.sl:Passed(0.716000)
+./tests/open_tests/array_search_5.sl:Passed(0.746000)
+./tests/open_tests/array_search_6.sl:Passed(0.798000)
+./tests/open_tests/array_search_7.sl:Passed(0.761000)
+./tests/open_tests/array_search_8.sl:Passed(0.835000)
+./tests/open_tests/array_search_9.sl:Passed(0.807000)
+./tests/open_tests/max10.sl:Passed(0.825000)
+./tests/open_tests/max12.sl:Passed(1.116000)
+./tests/open_tests/max13.sl:Passed(1.255000)
+./tests/open_tests/max14.sl:Passed(2.016000)
+./tests/open_tests/max15.sl:Passed(2.185000)
+./tests/open_tests/max2.sl:Passed(0.733000)
+./tests/open_tests/max3.sl:Passed(0.797000)
+./tests/open_tests/max4.sl:Passed(0.729000)
+./tests/open_tests/max5.sl:Passed(0.740000)
+./tests/open_tests/max6.sl:Passed(0.773000)
+./tests/open_tests/max7.sl:Passed(0.758000)
+./tests/open_tests/max8.sl:Passed(0.816000)
+./tests/open_tests/max9.sl:Passed(0.792000)
+./tests/open_tests/max_11.sl:Passed(0.973000)
+./tests/open_tests/s1.sl:Passed(0.727000)
+./tests/open_tests/s2.sl:Passed(0.725000)
+./tests/open_tests/s3.sl:Passed(0.778000)
+./tests/open_tests/three.sl:Passed(9.928000)
+./tests/open_tests/tutorial.sl:Passed(0.753000)
+~~~
 

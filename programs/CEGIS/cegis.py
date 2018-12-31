@@ -1,20 +1,21 @@
 from z3 import *
 import translator
+
 CEGISPositiveList = []
 CEGISNegativeList = []
 
 
 def add_positive_CEGIS(checker, st, target_list):
-    temp_contraints = copy.deepcopy(st.Constraints)
+    temp_constraints = copy.deepcopy(st.Constraints)
 
-    check_in_constraint_list(temp_contraints, target_list)
+    check_in_constraint_list(temp_constraints, target_list)
 
     smt2 = []
     for var in st.VarDecMap:
         smt2.append('(declare-const {0} {1})'.format(var, st.VarDecMap[var][2]))
     smt2.append('(declare-const ret Int)')
 
-    for constraint in temp_contraints:
+    for constraint in temp_constraints:
         smt2.append('(assert %s)' % (translator.to_string(constraint[1:])))
 
     checker.solver.push()
@@ -50,10 +51,10 @@ def check_in_constraint_list(l, target_list):
     l_len = len(l)
     flag = True
     for i in range(l_len):
-        contex = l[i]
-        if isinstance(contex, list):
+        context = l[i]
+        if isinstance(context, list):
             flag = False
-            result = check_in_constraint_list(contex, target_list)
+            result = check_in_constraint_list(context, target_list)
             if result:
                 l[i] = 'ret'
 
